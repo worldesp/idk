@@ -83,7 +83,7 @@ local Library do
             Assets = "scriptname/Assets"
         },
 
-        Images = { -- you're welcome to reupload the images and replace it with your own links
+        Images = {
             ["Saturation"] = {"Saturation.png", "https://github.com/sametexe001/images/blob/main/saturation.png?raw=true" },
             ["Value"] = { "Value.png", "https://github.com/sametexe001/images/blob/main/value.png?raw=true" },
             ["Hue"] = { "Hue.png", "https://github.com/sametexe001/images/blob/main/hue.png?raw=true" },
@@ -500,7 +500,6 @@ local Library do
 
                 StartMouse = UserInputService:GetMouseLocation()
 
-                -- store offsets, not absolute screen pos
                 StartPosition = Vector2New(Gui.Position.X.Offset, Gui.Position.Y.Offset)
                 StartSize = Vector2New(Gui.Size.X.Offset, Gui.Size.Y.Offset)
                 
@@ -916,7 +915,7 @@ local Library do
     Library.Watermark = function(self, Name)
         local Watermark = { } 
 
-        local Items = { } do
+        local Items = { } do 
             Items["Watermark"] = Instances:Create("Frame", {
                 Parent = Library.Holder.Instance,
                 Size = UDim2New(0, 0, 0, 20),
@@ -2418,7 +2417,6 @@ local Library do
                     BackgroundColor3 = Library.Theme.Background
                 })  Items["FloatingButton"]:AddToTheme({BackgroundColor3 = "Background"})
 
-                --
                 local Gui = Items["FloatingButton"].Instance
 
                 local Dragging = false 
@@ -3860,43 +3858,52 @@ local Library do
         return Button
     end
 
-    Library.Sections.Slider = function(self, Data)
-        Data = Data or { }
+    -- ============================================================
+    -- SLIDER (with sub-slider support)
+    -- ============================================================
+    --
+    -- Usage (normal):
+    --   Section:Slider({Name="Foo", Min=0, Max=100, Default=50, Flag="f", Compact=false})
+    --
+    -- Usage (with sub-slider, side-by-side):
+    --   local S = Section:Slider({Name="Foo", Min=0, Max=100, Default=50, Flag="f", Compact=true})
+    --   S:SubSlider({Name="Bar", Min=0, Max=10,  Default=5,  Flag="g", Compact=true})
+    --   -- Both Compact=true / false work independently per slider.
+    --
+    -- When SubSlider is attached:
+    --   * The outer wrapper shrinks to 50% width for the first slider.
+    --   * The sub-slider is placed in the remaining 50% on the same row.
+    --   * Each slider still fires its own Callback/Flag independently.
+    -- ============================================================
 
+    -- Internal helper: build one slider bar inside an existing parent frame.
+    -- parentInst   – Instance  : the Frame/TextButton that hosts this bar
+    -- Data         – table     : {Name, Min, Max, Default, Decimals, Suffix, Compact, Flag, Callback}
+    -- Returns the Slider object (same API as before: :Set, :Get, :SetVisibility).
+    local function BuildSliderBar(parentInst, Data)
         local Slider = {
-            Window = self.Window,
-            Page = self.Page,
-            Section = self,
-
-            Name = Data.Name or Data.name or "Slider",
-            Flag = Data.Flag or Data.flag or Library:NextFlag(),
-            Min = Data.Min or Data.min or 0,
-            Default = Data.Default or Data.default or 0,
-            Max = Data.Max or Data.max or 100,
-            Suffix = Data.Suffix or Data.suffix or "",
+            Name     = Data.Name     or Data.name     or "Slider",
+            Flag     = Data.Flag     or Data.flag     or Library:NextFlag(),
+            Min      = Data.Min      or Data.min      or 0,
+            Max      = Data.Max      or Data.max      or 100,
             Decimals = Data.Decimals or Data.decimals or 1,
+            Default  = Data.Default  or Data.default  or 0,
+            Suffix   = Data.Suffix   or Data.suffix   or "",
+            Compact  = Data.Compact  or Data.compact  or false,
             Callback = Data.Callback or Data.callback or function() end,
-            Compact = Data.Compact or Data.compact or false,
 
-            Value = 0,
+            Value   = 0,
             Sliding = false,
-            Class = "Slider",
-            SubSliders = {},
+            Class   = "Slider",
         }
 
-        local Items = { } do 
-            Items["Slider"] = Instances:Create("Frame", {
-                Parent = Slider.Section.Elements["Content"].Instance,
-                BackgroundTransparency = 1,
-                Name = "\0",
-                BorderColor3 = FromRGB(0, 0, 0),
-                Size = UDim2New(1, 0, 0, 27),
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            }) 
-            
-            Items["Text"] = Instances:Create("TextLabel", {
-                Parent = Items["Slider"].Instance,
+        Library.Flags[Slider.Flag] = Slider.Value
+
+        -- Label shown above the bar (non-compact only)
+        local LabelAbove
+        if not Slider.Compact then
+            LabelAbove = Instances:Create("TextLabel", {
+                Parent = parentInst,
                 FontFace = Library.Font,
                 TextColor3 = FromRGB(215, 215, 215),
                 BorderColor3 = FromRGB(0, 0, 0),
@@ -3908,62 +3915,70 @@ local Library do
                 BorderSizePixel = 0,
                 TextSize = 12,
                 BackgroundColor3 = FromRGB(255, 255, 255)
-            })  Items["Text"]:AddToTheme({TextColor3 = "Text"})
-            
+            })
+            LabelAbove:AddToTheme({TextColor3 = "Text"})
+
             Instances:Create("UIStroke", {
-                Parent = Items["Text"].Instance,
+                Parent = LabelAbove.Instance,
                 LineJoinMode = Enum.LineJoinMode.Miter,
                 Name = "\0"
             }):AddToTheme({Color = "Text Border"})
-            
-            Items["RealSlider"] = Instances:Create("TextButton", {
-                Parent = Items["Slider"].Instance,
-                AnchorPoint = Vector2New(0, 1),
-                Name = "\0",
-                Position = UDim2New(0, 0, 1, 0),
-                BorderColor3 = FromRGB(10, 10, 10),
-                Text = "",
-                AutoButtonColor = false,
-                Size = UDim2New(1, 0, 0, 10),
-                BorderSizePixel = 2,
-                BackgroundColor3 = FromRGB(33, 33, 36)
-            })  Items["RealSlider"]:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Border"})
-            
-            Instances:Create("UIStroke", {
-                Parent = Items["RealSlider"].Instance,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                Name = "\0",
-                Color = FromRGB(27, 27, 32)
-            }):AddToTheme({Color = "Outline"})
-            
-            Instances:Create("UIGradient", {
-                Parent = Items["RealSlider"].Instance,
-                Rotation = 90,
-                Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(100, 100, 100))}
-            }) 
-            
-            Items["Indicator"] = Instances:Create("Frame", {
-                Parent = Items["RealSlider"].Instance,
-                Name = "\0",
-                BorderColor3 = FromRGB(0, 0, 0),
-                Size = UDim2New(0.5, 0, 1, 0),
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(235, 157, 255)
-            })  Items["Indicator"]:AddToTheme({BackgroundColor3 = "Accent"})
-            
-            Instances:Create("UIGradient", {
-                Parent = Items["Indicator"].Instance,
-                Rotation = 90,
-                Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(100, 100, 100))}
-            }) 
-            
-            Items["Value"] = Instances:Create("TextLabel", {
-                Parent = Items["RealSlider"].Instance,
+        end
+
+        -- The actual draggable bar
+        local RealSlider = Instances:Create("TextButton", {
+            Parent = parentInst,
+            AnchorPoint = Vector2New(0, 0),
+            Name = "\0",
+            BorderColor3 = FromRGB(10, 10, 10),
+            Text = "",
+            AutoButtonColor = false,
+            Size = UDim2New(1, 0, 0, 10),
+            BorderSizePixel = 2,
+            BackgroundColor3 = FromRGB(33, 33, 36)
+        })
+        RealSlider:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Border"})
+
+        Instances:Create("UIStroke", {
+            Parent = RealSlider.Instance,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            LineJoinMode = Enum.LineJoinMode.Miter,
+            Name = "\0",
+            Color = FromRGB(27, 27, 32)
+        }):AddToTheme({Color = "Outline"})
+
+        Instances:Create("UIGradient", {
+            Parent = RealSlider.Instance,
+            Rotation = 90,
+            Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(100, 100, 100))}
+        })
+
+        local Indicator = Instances:Create("Frame", {
+            Parent = RealSlider.Instance,
+            Name = "\0",
+            BorderColor3 = FromRGB(0, 0, 0),
+            Size = UDim2New(0.5, 0, 1, 0),
+            BorderSizePixel = 0,
+            BackgroundColor3 = FromRGB(235, 157, 255)
+        })
+        Indicator:AddToTheme({BackgroundColor3 = "Accent"})
+
+        Instances:Create("UIGradient", {
+            Parent = Indicator.Instance,
+            Rotation = 90,
+            Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(100, 100, 100))}
+        })
+
+        -- Value label (inside the bar for compact, or on top of bar normally)
+        local ValueLabel
+        if Slider.Compact then
+            -- In compact mode: show "Name: value" centered inside the bar itself
+            ValueLabel = Instances:Create("TextLabel", {
+                Parent = RealSlider.Instance,
                 FontFace = Library.Font,
                 TextColor3 = FromRGB(215, 215, 215),
                 BorderColor3 = FromRGB(0, 0, 0),
-                Text = "50/100s",
+                Text = Slider.Name .. ": 0" .. Slider.Suffix,
                 Name = "\0",
                 BackgroundTransparency = 1,
                 Position = UDim2New(0, 0, 0, -1),
@@ -3971,49 +3986,65 @@ local Library do
                 BorderSizePixel = 0,
                 TextSize = 12,
                 BackgroundColor3 = FromRGB(255, 255, 255)
-            })  Items["Value"]:AddToTheme({TextColor3 = "Text"})
+            })
+            ValueLabel:AddToTheme({TextColor3 = "Text"})
 
             Instances:Create("UIStroke", {
-                Parent = Items["Value"].Instance,
+                Parent = ValueLabel.Instance,
                 LineJoinMode = Enum.LineJoinMode.Miter,
                 Name = "\0"
             }):AddToTheme({Color = "Text Border"})
+        else
+            -- Non-compact: show just "value/max" inside the bar
+            ValueLabel = Instances:Create("TextLabel", {
+                Parent = RealSlider.Instance,
+                FontFace = Library.Font,
+                TextColor3 = FromRGB(215, 215, 215),
+                BorderColor3 = FromRGB(0, 0, 0),
+                Text = "0/100",
+                Name = "\0",
+                BackgroundTransparency = 1,
+                Position = UDim2New(0, 0, 0, -1),
+                Size = UDim2New(1, 0, 1, 0),
+                BorderSizePixel = 0,
+                TextSize = 12,
+                BackgroundColor3 = FromRGB(255, 255, 255)
+            })
+            ValueLabel:AddToTheme({TextColor3 = "Text"})
 
-            if Slider.Compact then 
-                Items["Value"]:Clean()
-                Items["Value"] = nil
-
-                Items["Slider"].Instance.Size = UDim2New(1,0,0,10)
-                Items["Text"].Instance.Parent = Items["RealSlider"].Instance
-                Items["Text"].Instance.Position = UDim2New(0,0,0,-2)
-                Items["Text"].Instance.TextXAlignment = Enum.TextXAlignment.Center
-            end
-
-            Items["RealSlider"]:OnHover(function()
-                Items["RealSlider"]:Tween(nil, {BackgroundColor3 = Library.Theme["Hovered Element"]})
-                Items["RealSlider"]:ChangeItemTheme({BackgroundColor3 = "Hovered Element", BorderColor3 = "Border"})
-            end)
-
-            Items["RealSlider"]:OnHoverLeave(function()
-                Items["RealSlider"]:Tween(nil, {BackgroundColor3 = Library.Theme["Background"]})
-                Items["RealSlider"]:ChangeItemTheme({BackgroundColor3 = "Background", BorderColor3 = "Border"})
-            end)
+            Instances:Create("UIStroke", {
+                Parent = ValueLabel.Instance,
+                LineJoinMode = Enum.LineJoinMode.Miter,
+                Name = "\0"
+            }):AddToTheme({Color = "Text Border"})
         end
+
+        RealSlider:OnHover(function()
+            RealSlider:Tween(nil, {BackgroundColor3 = Library.Theme["Hovered Element"]})
+            RealSlider:ChangeItemTheme({BackgroundColor3 = "Hovered Element", BorderColor3 = "Border"})
+        end)
+
+        RealSlider:OnHoverLeave(function()
+            RealSlider:Tween(nil, {BackgroundColor3 = Library.Theme["Background"]})
+            RealSlider:ChangeItemTheme({BackgroundColor3 = "Background", BorderColor3 = "Border"})
+        end)
 
         function Slider:Set(Value)
             Slider.Value = MathClamp(Library:Round(Value, Slider.Decimals), Slider.Min, Slider.Max)
-
             Library.Flags[Slider.Flag] = Slider.Value
-            
+
             if Slider.Compact then
-                Items["Text"].Instance.Text = `{Slider.Name}: {Slider.Value}{Slider.Suffix}`
+                ValueLabel.Instance.Text = `{Slider.Name}: {Slider.Value}{Slider.Suffix}`
             else
-                Items["Value"].Instance.Text = `{Slider.Value}{Slider.Suffix}`
+                ValueLabel.Instance.Text = `{Slider.Value}{Slider.Suffix}`
             end
 
-            Items["Indicator"]:Tween(TweenInfo.new(0.17, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2New((Slider.Value - Slider.Min) / (Slider.Max - Slider.Min), 0, 1, 0)})
+            Indicator:Tween(
+                TweenInfo.new(0.17, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+                {Size = UDim2New((Slider.Value - Slider.Min) / (Slider.Max - Slider.Min), 0, 1, 0)}
+            )
 
-            if Slider.Callback then 
+            if Slider.Callback then
                 Library:SafeCall(Slider.Callback, Slider.Value)
             end
         end
@@ -4023,231 +4054,20 @@ local Library do
         end
 
         function Slider:SetVisibility(Bool)
-            Items["Slider"].Instance.Visible = Bool
+            -- will be set on the outer wrapper by the calling code
         end
 
-        -- NEW: SubSlider method for side-by-side sliders (like Linoria)
-        function Slider:SubSlider(SubData)
-            SubData = SubData or { }
-            
-            -- Create a container for the side-by-side layout
-            local Container = Instances:Create("Frame", {
-                Parent = Slider.Section.Elements["Content"].Instance,
-                BackgroundTransparency = 1,
-                Name = "\0",
-                Size = UDim2New(1, 0, 0, 27),
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            })
-            
-            -- Create the sub slider object
-            local SubSlider = {
-                Window = Slider.Window,
-                Page = Slider.Page,
-                Section = Slider.Section,
-                ParentSlider = Slider,
-
-                Name = SubData.Name or SubData.name or "SubSlider",
-                Flag = SubData.Flag or SubData.flag or Library:NextFlag(),
-                Min = SubData.Min or SubData.min or Slider.Min,
-                Default = SubData.Default or SubData.default or Slider.Default,
-                Max = SubData.Max or SubData.max or Slider.Max,
-                Suffix = SubData.Suffix or SubData.suffix or Slider.Suffix,
-                Decimals = SubData.Decimals or SubData.decimals or Slider.Decimals,
-                Callback = SubData.Callback or SubData.callback or function() end,
-                Compact = SubData.Compact or SubData.compact or false,
-
-                Value = 0,
-                Sliding = false,
-                Class = "SubSlider",
-            }
-
-            -- Create the label for the sub slider (smaller / dimmer text)
-            local SubText = Instances:Create("TextLabel", {
-                Parent = Container.Instance,
-                FontFace = Library.Font,
-                TextColor3 = FromRGB(180, 180, 180),
-                BorderColor3 = FromRGB(0, 0, 0),
-                Text = SubSlider.Name,
-                Name = "\0",
-                BackgroundTransparency = 1,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                Size = UDim2New(1, 0, 0, 13),
-                BorderSizePixel = 0,
-                TextSize = 11,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            })  SubText:AddToTheme({TextColor3 = "Text"})
-            
-            Instances:Create("UIStroke", {
-                Parent = SubText.Instance,
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                Name = "\0"
-            }):AddToTheme({Color = "Text Border"})
-            
-            -- Create the slider bar
-            local RealSlider = Instances:Create("TextButton", {
-                Parent = Container.Instance,
-                AnchorPoint = Vector2New(0, 1),
-                Name = "\0",
-                Position = UDim2New(0, 0, 1, 0),
-                BorderColor3 = FromRGB(10, 10, 10),
-                Text = "",
-                AutoButtonColor = false,
-                Size = UDim2New(1, 0, 0, 10),
-                BorderSizePixel = 2,
-                BackgroundColor3 = FromRGB(33, 33, 36)
-            })  RealSlider:AddToTheme({BackgroundColor3 = "Background", BorderColor3 = "Border"})
-            
-            Instances:Create("UIStroke", {
-                Parent = RealSlider.Instance,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                Name = "\0",
-                Color = FromRGB(27, 27, 32)
-            }):AddToTheme({Color = "Outline"})
-            
-            Instances:Create("UIGradient", {
-                Parent = RealSlider.Instance,
-                Rotation = 90,
-                Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(100, 100, 100))}
-            }) 
-            
-            local Indicator = Instances:Create("Frame", {
-                Parent = RealSlider.Instance,
-                Name = "\0",
-                BorderColor3 = FromRGB(0, 0, 0),
-                Size = UDim2New(0.5, 0, 1, 0),
-                BorderSizePixel = 0,
-                BackgroundColor3 = FromRGB(235, 157, 255)
-            })  Indicator:AddToTheme({BackgroundColor3 = "Accent"})
-            
-            Instances:Create("UIGradient", {
-                Parent = Indicator.Instance,
-                Rotation = 90,
-                Color = RGBSequence{RGBSequenceKeypoint(0, FromRGB(255, 255, 255)), RGBSequenceKeypoint(1, FromRGB(100, 100, 100))}
-            }) 
-            
-            local ValueLabel = Instances:Create("TextLabel", {
-                Parent = RealSlider.Instance,
-                FontFace = Library.Font,
-                TextColor3 = FromRGB(215, 215, 215),
-                BorderColor3 = FromRGB(0, 0, 0),
-                Text = "50/100s",
-                Name = "\0",
-                BackgroundTransparency = 1,
-                Position = UDim2New(0, 0, 0, -1),
-                Size = UDim2New(1, 0, 1, 0),
-                BorderSizePixel = 0,
-                TextSize = 11,
-                BackgroundColor3 = FromRGB(255, 255, 255)
-            })  ValueLabel:AddToTheme({TextColor3 = "Text"})
-
-            Instances:Create("UIStroke", {
-                Parent = ValueLabel.Instance,
-                LineJoinMode = Enum.LineJoinMode.Miter,
-                Name = "\0"
-            }):AddToTheme({Color = "Text Border"})
-
-            if SubSlider.Compact then 
-                ValueLabel:Clean()
-                ValueLabel = nil
-                Container.Instance.Size = UDim2New(1,0,0,10)
-                SubText.Instance.Parent = RealSlider.Instance
-                SubText.Instance.Position = UDim2New(0,0,0,-2)
-                SubText.Instance.TextXAlignment = Enum.TextXAlignment.Center
-                SubText.Instance.TextSize = 10
-            end
-
-            RealSlider:OnHover(function()
-                RealSlider:Tween(nil, {BackgroundColor3 = Library.Theme["Hovered Element"]})
-                RealSlider:ChangeItemTheme({BackgroundColor3 = "Hovered Element", BorderColor3 = "Border"})
-            end)
-
-            RealSlider:OnHoverLeave(function()
-                RealSlider:Tween(nil, {BackgroundColor3 = Library.Theme["Background"]})
-                RealSlider:ChangeItemTheme({BackgroundColor3 = "Background", BorderColor3 = "Border"})
-            end)
-
-            function SubSlider:Set(Value)
-                SubSlider.Value = MathClamp(Library:Round(Value, SubSlider.Decimals), SubSlider.Min, SubSlider.Max)
-
-                Library.Flags[SubSlider.Flag] = SubSlider.Value
-                
-                if SubSlider.Compact then
-                    SubText.Instance.Text = `{SubSlider.Name}: {SubSlider.Value}{SubSlider.Suffix}`
-                else
-                    ValueLabel.Instance.Text = `{SubSlider.Value}{SubSlider.Suffix}`
-                end
-
-                Indicator:Tween(TweenInfo.new(0.17, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2New((SubSlider.Value - SubSlider.Min) / (SubSlider.Max - SubSlider.Min), 0, 1, 0)})
-
-                if SubSlider.Callback then 
-                    Library:SafeCall(SubSlider.Callback, SubSlider.Value)
-                end
-            end
-
-            function SubSlider:Get()
-                return SubSlider.Value
-            end
-
-            function SubSlider:SetVisibility(Bool)
-                Container.Instance.Visible = Bool
-            end
-
-            RealSlider:Connect("MouseButton1Down", function()
-                SubSlider.Sliding = true
-
-                local MousePos = UserInputService:GetMouseLocation()
-
-                local SizeX = (MousePos.X - RealSlider.Instance.AbsolutePosition.X) / RealSlider.Instance.AbsoluteSize.X
-                local Value = ((SubSlider.Max - SubSlider.Min) * SizeX) + SubSlider.Min
-
-                SubSlider:Set(Value)
-            end)
-
-            RealSlider:Connect("InputEnded", function(Input)
-                if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    SubSlider.Sliding = false
-                end
-            end)
-
-            Library:Connect(UserInputService.InputChanged, function(Input)
-                if Input.UserInputType == Enum.UserInputType.MouseMovement and SubSlider.Sliding then
-                    local MousePos = UserInputService:GetMouseLocation()
-
-                    local SizeX = (MousePos.X - RealSlider.Instance.AbsolutePosition.X) / RealSlider.Instance.AbsoluteSize.X
-                    local Value = ((SubSlider.Max - SubSlider.Min) * SizeX) + SubSlider.Min
-
-                    SubSlider:Set(Value)
-                end
-            end)
-
-            if SubSlider.Default then
-                SubSlider:Set(SubSlider.Default)
-            end
-
-            Library.SetFlags[SubSlider.Flag] = function(Value)
-                SubSlider:Set(Value)
-            end
-
-            -- Store the sub slider in the parent slider for reference
-            table.insert(Slider.SubSliders, SubSlider)
-
-            return SubSlider
-        end
-
-        Items["RealSlider"]:Connect("MouseButton1Down", function()
+        -- Drag input
+        RealSlider:Connect("MouseButton1Down", function()
             Slider.Sliding = true
 
             local MousePos = UserInputService:GetMouseLocation()
-
-            local SizeX = (MousePos.X - Items["RealSlider"].Instance.AbsolutePosition.X) / Items["RealSlider"].Instance.AbsoluteSize.X
+            local SizeX = (MousePos.X - RealSlider.Instance.AbsolutePosition.X) / RealSlider.Instance.AbsoluteSize.X
             local Value = ((Slider.Max - Slider.Min) * SizeX) + Slider.Min
-
             Slider:Set(Value)
         end)
 
-        Items["RealSlider"]:Connect("InputEnded", function(Input)
+        RealSlider:Connect("InputEnded", function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 then
                 Slider.Sliding = false
             end
@@ -4256,10 +4076,8 @@ local Library do
         Library:Connect(UserInputService.InputChanged, function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseMovement and Slider.Sliding then
                 local MousePos = UserInputService:GetMouseLocation()
-
-                local SizeX = (MousePos.X - Items["RealSlider"].Instance.AbsolutePosition.X) / Items["RealSlider"].Instance.AbsoluteSize.X
+                local SizeX = (MousePos.X - RealSlider.Instance.AbsolutePosition.X) / RealSlider.Instance.AbsoluteSize.X
                 local Value = ((Slider.Max - Slider.Min) * SizeX) + Slider.Min
-
                 Slider:Set(Value)
             end
         end)
@@ -4269,6 +4087,111 @@ local Library do
         end
 
         Library.SetFlags[Slider.Flag] = function(Value)
+            Slider:Set(Value)
+        end
+
+        -- Store refs for layout use
+        Slider._RealSlider = RealSlider
+        Slider._LabelAbove = LabelAbove
+
+        return Slider
+    end
+
+    Library.Sections.Slider = function(self, Data)
+        Data = Data or { }
+
+        -- Outer wrapper that UIListLayout in the section will manage
+        local Compact = Data.Compact or Data.compact or false
+
+        -- Height: compact = 10px (bar only), non-compact = 27px (label + bar)
+        local OuterHeight = Compact and 10 or 27
+
+        local OuterFrame = Instances:Create("Frame", {
+            Parent = self.Elements["Content"].Instance,
+            BackgroundTransparency = 1,
+            Name = "\0",
+            BorderColor3 = FromRGB(0, 0, 0),
+            Size = UDim2New(1, 0, 0, OuterHeight),
+            BorderSizePixel = 0,
+            BackgroundColor3 = FromRGB(255, 255, 255)
+        })
+
+        -- Left half frame (will be full-width until SubSlider is added)
+        local LeftFrame = Instances:Create("Frame", {
+            Parent = OuterFrame.Instance,
+            BackgroundTransparency = 1,
+            Name = "\0",
+            Size = UDim2New(1, 0, 1, 0),
+            Position = UDim2New(0, 0, 0, 0),
+            BorderSizePixel = 0,
+            BackgroundColor3 = FromRGB(255, 255, 255)
+        })
+
+        -- Use UIListLayout inside LeftFrame so label stacks above bar
+        Instances:Create("UIListLayout", {
+            Parent = LeftFrame.Instance,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDimNew(0, 4)
+        })
+
+        local Slider = BuildSliderBar(LeftFrame.Instance, Data)
+
+        -- Expose SetVisibility on the outer frame
+        function Slider:SetVisibility(Bool)
+            OuterFrame.Instance.Visible = Bool
+        end
+
+        -- -------------------------------------------------------
+        -- SubSlider: call this to add a second slider on the right
+        -- -------------------------------------------------------
+        function Slider:SubSlider(SubData)
+            SubData = SubData or { }
+
+            -- Resize left half to 50%
+            LeftFrame.Instance.Size = UDim2New(0.5, -2, 1, 0)
+
+            -- Right half frame
+            local RightFrame = Instances:Create("Frame", {
+                Parent = OuterFrame.Instance,
+                BackgroundTransparency = 1,
+                Name = "\0",
+                Size = UDim2New(0.5, -2, 1, 0),
+                Position = UDim2New(0.5, 2, 0, 0),
+                BorderSizePixel = 0,
+                BackgroundColor3 = FromRGB(255, 255, 255)
+            })
+
+            Instances:Create("UIListLayout", {
+                Parent = RightFrame.Instance,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDimNew(0, 4)
+            })
+
+            -- If the sub-slider is non-compact but main is compact (or vice-versa),
+            -- the outer frame height might need to accommodate the taller one.
+            local SubCompact = SubData.Compact or SubData.compact or false
+            local SubHeight  = SubCompact and 10 or 27
+            local MainHeight = Compact and 10 or 27
+            if SubHeight > MainHeight then
+                OuterFrame.Instance.Size = UDim2New(1, 0, 0, SubHeight)
+            elseif MainHeight > SubHeight then
+                OuterFrame.Instance.Size = UDim2New(1, 0, 0, MainHeight)
+            end
+
+            local SubSliderObj = BuildSliderBar(RightFrame.Instance, SubData)
+
+            function SubSliderObj:SetVisibility(Bool)
+                OuterFrame.Instance.Visible = Bool
+            end
+
+            Library.SetFlags[SubData.Flag or SubData.flag] = function(Value)
+                SubSliderObj:Set(Value)
+            end
+
+            return SubSliderObj
+        end
+
+        Library.SetFlags[Data.Flag or Data.flag] = function(Value)
             Slider:Set(Value)
         end
 
