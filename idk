@@ -1,7 +1,7 @@
 --[[
-    Optimized UI with border-only drag preview.
-    Window itself has NO outer border (transparent background, no border).
-    During drag, a border frame (accent color) follows the mouse.
+    Fully optimized UI with border-only drag preview.
+    Window has NO outer border (transparent background).
+    Tabbox highlight: only under the selected tab, not full width.
 ]]
 
 local InputService = game:GetService('UserInputService');
@@ -3083,7 +3083,7 @@ function Library:CreateWindow(...)
 		Name = 'Inner',
 		BackgroundColor3 = Library.MainColor;
 		BorderSizePixel = 0, -- No border
-		Position = UDim2.new(0, 0, 0, 0); -- Fill entire Outer
+		Position = UDim2.new(0, 0, 0, 0);
 		Size = UDim2.new(1, 0, 1, 0);
 		ZIndex = 1;
 		Parent = Outer;
@@ -3435,19 +3435,26 @@ function Library:CreateWindow(...)
 				BackgroundColor3 = 'BackgroundColor';
 			});
 
-			local Highlight = Library:Create('Frame', {
+			-- NEW: Tab highlight line (will be positioned under the selected tab)
+			local TabHighlight = Library:Create('Frame', {
+				Name = 'TabHighlight',
 				BackgroundColor3 = Library.AccentColor;
 				BorderSizePixel = 0;
-				Size = UDim2.new(1, 0, 0, 2);
-				ZIndex = 10;
-				Parent = BoxInner;
+				Position = UDim2.new(0, 0, 1, -2); -- at bottom of TabboxButtons
+				Size = UDim2.new(0, 0, 0, 2);
+				ZIndex = 11;
+				Parent = BoxInner; -- We'll move it to TabboxButtons later? Actually we can keep it in BoxInner but position relative to TabboxButtons.
+				Visible = false; -- hidden until a tab is selected
 			});
-
-			Library:AddToRegistry(Highlight, {
+			Library:AddToRegistry(TabHighlight, {
 				BackgroundColor3 = 'AccentColor';
 			});
 
+			-- We'll store reference in Tabbox
+			Tabbox.TabHighlight = TabHighlight;
+
 			local TabboxButtons = Library:Create('Frame', {
+				Name = 'TabboxButtons',
 				BackgroundTransparency = 1;
 				Position = UDim2.new(0, 0, 0, 1);
 				Size = UDim2.new(1, 0, 0, 18);
@@ -3532,6 +3539,31 @@ function Library:CreateWindow(...)
 
 					Button.BackgroundColor3 = Library.BackgroundColor;
 					Library.RegistryMap[Button].Properties.BackgroundColor3 = 'BackgroundColor';
+
+					-- Update the highlight position and size to match this button
+					local highlight = Tabbox.TabHighlight;
+					if highlight then
+						highlight.Visible = true;
+						-- Get the absolute position of the button relative to BoxInner? Since highlight is inside BoxInner, we need to set Position relative to BoxInner.
+						-- We'll update on RenderStepped or when button position changes.
+						-- We'll set up a connection to update when button position changes.
+						-- But for simplicity, we'll use a function that updates on tab show.
+						local function updateHighlightPosition()
+							if not Button or not Button.Parent then return end
+							local buttonAbsPos = Button.AbsolutePosition;
+							local parentAbsPos = BoxInner.AbsolutePosition;
+							local xOffset = buttonAbsPos.X - parentAbsPos.X;
+							local width = Button.AbsoluteSize.X;
+							highlight.Position = UDim2.new(0, xOffset, 1, -2);
+							highlight.Size = UDim2.new(0, width, 0, 2);
+						end
+						-- Do it now
+						updateHighlightPosition();
+						-- Also connect to any changes (like resizing)
+						Button:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateHighlightPosition);
+						Button:GetPropertyChangedSignal('AbsoluteSize'):Connect(updateHighlightPosition);
+						BoxInner:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateHighlightPosition);
+					end
 
 					Tab:Resize();
 				end;
