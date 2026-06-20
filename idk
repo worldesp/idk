@@ -1,3 +1,8 @@
+--[[
+    Fully optimized UI-only version with drag optimization.
+    When dragging, only a border frame moves (no contents), eliminating lag.
+]]
+
 local InputService = game:GetService('UserInputService');
 local TextService = game:GetService('TextService');
 local CoreGui = gethui and gethui() or cloneref(game:GetService('CoreGui'));
@@ -171,12 +176,25 @@ function Library:CreateLabel(Properties, IsHud)
 	return Library:Create(_Instance, Properties);
 end;
 
--- OPTIMIZED DRAGGING: updates position every 2 render steps to reduce CPU usage
+-- OPTIMIZED DRAGGING with border-only preview
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
-	local dragging = false;
+
+	-- Create a drag preview frame (border only) for this draggable object
+	local dragPreview = Library:Create('Frame', {
+		BackgroundTransparency = 1;
+		BorderColor3 = Library.AccentColor;
+		BorderSizePixel = 2;
+		Size = Instance.Size;
+		Position = Instance.Position;
+		Visible = false;
+		ZIndex = 999;
+		Parent = ScreenGui;
+	});
+
+	local isDragging = false;
 	local dragOffset = Vector2.new();
-	local frameCounter = 0;
+	local originalSize = Instance.Size;
 
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -189,23 +207,33 @@ function Library:MakeDraggable(Instance, Cutoff)
 				return;
 			end;
 
-			dragging = true;
+			isDragging = true;
 			dragOffset = ObjPos;
-			frameCounter = 0;
 
-			while dragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-				frameCounter = frameCounter + 1;
-				if frameCounter % 2 == 0 then -- update every 2 frames to reduce load
-					Instance.Position = UDim2.new(
-						0,
-						Mouse.X - dragOffset.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
-						0,
-						Mouse.Y - dragOffset.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
-					);
-				end
+			-- Hide the actual window and show the border preview
+			Instance.Visible = false;
+			dragPreview.Size = Instance.Size;
+			dragPreview.Position = Instance.Position;
+			dragPreview.Visible = true;
+
+			while isDragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+				local newPos = UDim2.new(
+					0,
+					Mouse.X - dragOffset.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
+					0,
+					Mouse.Y - dragOffset.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
+				);
+				dragPreview.Position = newPos;
 				RenderStepped:Wait();
 			end
-			dragging = false;
+
+			-- End drag: place the window at the preview position and show it
+			if isDragging then
+				Instance.Position = dragPreview.Position;
+				Instance.Visible = true;
+				dragPreview.Visible = false;
+				isDragging = false;
+			end
 		end
 	end);
 end;
@@ -374,7 +402,6 @@ function Library:RemoveFromRegistry(Instance)
 end;
 
 function Library:UpdateColorsUsingRegistry()
-	-- Only called when colors change, not during dragging.
 	for Idx, Object in next, Library.Registry do
 		for Property, ColorIdx in next, Object.Properties do
 			if type(ColorIdx) == 'string' then
@@ -420,7 +447,6 @@ do
 
 	function Funcs:AddColorPicker(Idx, Info)
 		local ToggleLabel = self.TextLabel;
-		-- local Container = self.Container;
 
 		assert(Info.Default, 'AddColorPicker: Missing default value.');
 
