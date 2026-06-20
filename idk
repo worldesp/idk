@@ -1,8 +1,8 @@
 --[[
     Fully optimized UI with border-only drag preview.
     Window has NO outer border.
-    Tabbox tabs: no visible borders, blend with background.
-    Highlight line above the selected tab.
+    Tabbox tabs: borderless, blend with background.
+    Highlight line above the selected tab only.
 ]]
 
 local InputService = game:GetService('UserInputService');
@@ -3487,8 +3487,6 @@ function Library:CreateWindow(...)
 					Parent = TabboxButtons;
 				});
 
-				-- We don't need to register border color since we removed it.
-
 				local ButtonLabel = Library:CreateLabel({
 					Size = UDim2.new(1, 0, 1, 0);
 					TextSize = 14;
@@ -3535,8 +3533,7 @@ function Library:CreateWindow(...)
 					Container.Visible = true;
 					Block.Visible = true;
 
-					-- Keep background same (already BackgroundColor)
-					Button.BackgroundColor3 = Library.BackgroundColor;
+					Button.BackgroundColor3 = Library.BackgroundColor; -- keep blended
 
 					-- Position the highlight above this tab
 					local highlight = Tabbox.TabHighlight;
@@ -3564,7 +3561,6 @@ function Library:CreateWindow(...)
 					Container.Visible = false;
 					Block.Visible = false;
 
-					-- Reset background to BackgroundColor (same, so no change)
 					Button.BackgroundColor3 = Library.BackgroundColor;
 				end;
 
