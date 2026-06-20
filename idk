@@ -1,3 +1,8 @@
+--[[
+    Optimized UI with original dragging behavior.
+    When dragging the main window, the entire UI becomes 80% transparent (no border preview).
+]]
+
 local InputService = game:GetService('UserInputService');
 local TextService = game:GetService('TextService');
 local CoreGui = gethui and gethui() or cloneref(game:GetService('CoreGui'));
@@ -171,30 +176,19 @@ function Library:CreateLabel(Properties, IsHud)
 	return Library:Create(_Instance, Properties);
 end;
 
--- OPTIMIZED DRAGGING with border-only preview
--- Smooth dragging with a border-only "ghost" preview (Windows-style)
+-- ORIGINAL DRAGGING with 80% transparency during drag (no border preview)
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
+	local isDragging = false;
+	local dragOffset = Vector2.new();
+	local origTransparency = {};
+	local targetFrames = { Instance };
 
-	local DragPreview = Library:Create('Frame', {
-		BackgroundTransparency = 1;
-		BorderColor3 = Library.AccentColor;
-		BorderSizePixel = 2;
-		BorderMode = Enum.BorderMode.Outline;
-		AnchorPoint = Instance.AnchorPoint; -- <-- this was missing
-		Size = Instance.Size;
-		Position = Instance.Position;
-		Visible = false;
-		ZIndex = 999;
-		Parent = ScreenGui;
-	});
-
-	-- keeps the border in sync with theme/accent color changes
-	Library:AddToRegistry(DragPreview, {
-		BorderColor3 = 'AccentColor';
-	});
-
-	local Dragging = false;
+	-- Find the inner frame if it exists (for main window)
+	local inner = Instance:FindFirstChild('Inner') or Instance:FindFirstChildOfClass('Frame')
+	if inner then
+		targetFrames[#targetFrames + 1] = inner
+	end
 
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -207,27 +201,34 @@ function Library:MakeDraggable(Instance, Cutoff)
 				return;
 			end;
 
-			Dragging = true;
+			isDragging = true;
+			dragOffset = ObjPos;
 
-			DragPreview.Size = Instance.Size;
-			DragPreview.Position = Instance.Position;
-			DragPreview.Visible = true;
-			Instance.Visible = false;
+			-- Store original transparencies and set to 0.8 (80% transparent)
+			for _, frame in ipairs(targetFrames) do
+				if not origTransparency[frame] then
+					origTransparency[frame] = frame.BackgroundTransparency
+				end
+				frame.BackgroundTransparency = 0.8
+			end
 
-			while Dragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-				DragPreview.Position = UDim2.new(
-					0, Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
-					0, Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
+			while isDragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+				Instance.Position = UDim2.new(
+					0,
+					Mouse.X - dragOffset.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
+					0,
+					Mouse.Y - dragOffset.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
 				);
-
 				RenderStepped:Wait();
-			end;
+			end
 
-			Dragging = false;
-			Instance.Position = DragPreview.Position;
-			Instance.Visible = true;
-			DragPreview.Visible = false;
-		end;
+			-- Restore original transparencies
+			for frame, orig in pairs(origTransparency) do
+				frame.BackgroundTransparency = orig
+			end
+			table.clear(origTransparency)
+			isDragging = false
+		end
 	end);
 end;
 
@@ -3072,6 +3073,7 @@ function Library:CreateWindow(...)
 	Library:MakeDraggable(Outer, 25);
 
 	local Inner = Library:Create('Frame', {
+		Name = 'Inner',
 		BackgroundColor3 = Library.MainColor;
 		BorderColor3 = Library.AccentColor;
 		BorderMode = Enum.BorderMode.Inset;
