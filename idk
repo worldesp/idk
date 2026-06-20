@@ -1,7 +1,7 @@
 --[[
     Fully optimized UI with border-only drag preview.
     Window has NO outer border (transparent background).
-    Tabbox highlight: only under the selected tab, at the bottom of the tab row.
+    Tabbox highlight: a thin line above the selected tab (at the top of the tab button).
 ]]
 
 local InputService = game:GetService('UserInputService');
@@ -3435,22 +3435,21 @@ function Library:CreateWindow(...)
 				BackgroundColor3 = 'BackgroundColor';
 			});
 
-			-- NEW: Tab highlight line (will be positioned under the selected tab, at Y=18 relative to BoxInner)
+			-- Tab highlight: a line above the selected tab (at the top of the tab button)
 			local TabHighlight = Library:Create('Frame', {
 				Name = 'TabHighlight',
 				BackgroundColor3 = Library.AccentColor;
 				BorderSizePixel = 0;
-				Position = UDim2.new(0, 0, 0, 18); -- below the tab buttons (they start at Y=1, height=18)
+				Position = UDim2.new(0, 0, 0, 0); -- positioned at top of tab button area
 				Size = UDim2.new(0, 0, 0, 2);
 				ZIndex = 11;
 				Parent = BoxInner;
-				Visible = false; -- hidden until a tab is selected
+				Visible = false;
 			});
 			Library:AddToRegistry(TabHighlight, {
 				BackgroundColor3 = 'AccentColor';
 			});
 
-			-- We'll store reference in Tabbox
 			Tabbox.TabHighlight = TabHighlight;
 
 			local TabboxButtons = Library:Create('Frame', {
@@ -3540,7 +3539,7 @@ function Library:CreateWindow(...)
 					Button.BackgroundColor3 = Library.BackgroundColor;
 					Library.RegistryMap[Button].Properties.BackgroundColor3 = 'BackgroundColor';
 
-					-- Update the highlight position and size to match this button
+					-- Position the highlight above this tab
 					local highlight = Tabbox.TabHighlight;
 					if highlight then
 						highlight.Visible = true;
@@ -3550,12 +3549,10 @@ function Library:CreateWindow(...)
 							local parentAbsPos = BoxInner.AbsolutePosition;
 							local xOffset = buttonAbsPos.X - parentAbsPos.X;
 							local width = Button.AbsoluteSize.X;
-							highlight.Position = UDim2.new(0, xOffset, 0, 18); -- Y=18 is just below the tab buttons
+							highlight.Position = UDim2.new(0, xOffset, 0, 0); -- at the top
 							highlight.Size = UDim2.new(0, width, 0, 2);
 						end
-						-- Do it now
 						updateHighlightPosition();
-						-- Also connect to any changes (like resizing)
 						Button:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateHighlightPosition);
 						Button:GetPropertyChangedSignal('AbsoluteSize'):Connect(updateHighlightPosition);
 						BoxInner:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateHighlightPosition);
