@@ -1,8 +1,7 @@
 --[[
-    Fully optimized UI with border-only drag preview.
-    Window has NO outer border.
-    Tabbox tabs: borderless, blend with background.
-    Highlight line above the selected tab only.
+    Optimized UI with border-only drag preview.
+    Window itself has NO outer border (transparent background, no border).
+    During drag, a border frame (accent color) follows the mouse.
 ]]
 
 local InputService = game:GetService('UserInputService');
@@ -3084,7 +3083,7 @@ function Library:CreateWindow(...)
 		Name = 'Inner',
 		BackgroundColor3 = Library.MainColor;
 		BorderSizePixel = 0, -- No border
-		Position = UDim2.new(0, 0, 0, 0);
+		Position = UDim2.new(0, 0, 0, 0); -- Fill entire Outer
 		Size = UDim2.new(1, 0, 1, 0);
 		ZIndex = 1;
 		Parent = Outer;
@@ -3436,25 +3435,19 @@ function Library:CreateWindow(...)
 				BackgroundColor3 = 'BackgroundColor';
 			});
 
-			-- Tab highlight: a line above the selected tab (at the top of the tab button area)
-			local TabHighlight = Library:Create('Frame', {
-				Name = 'TabHighlight',
+			local Highlight = Library:Create('Frame', {
 				BackgroundColor3 = Library.AccentColor;
 				BorderSizePixel = 0;
-				Position = UDim2.new(0, 0, 0, 0); -- positioned at top of tab button area
-				Size = UDim2.new(0, 0, 0, 2);
-				ZIndex = 11;
+				Size = UDim2.new(1, 0, 0, 2);
+				ZIndex = 10;
 				Parent = BoxInner;
-				Visible = false;
 			});
-			Library:AddToRegistry(TabHighlight, {
+
+			Library:AddToRegistry(Highlight, {
 				BackgroundColor3 = 'AccentColor';
 			});
 
-			Tabbox.TabHighlight = TabHighlight;
-
 			local TabboxButtons = Library:Create('Frame', {
-				Name = 'TabboxButtons',
 				BackgroundTransparency = 1;
 				Position = UDim2.new(0, 0, 0, 1);
 				Size = UDim2.new(1, 0, 0, 18);
@@ -3480,11 +3473,15 @@ function Library:CreateWindow(...)
 				local Tab = {};
 
 				local Button = Library:Create('Frame', {
-					BackgroundColor3 = Library.BackgroundColor; -- blend with background
-					BorderSizePixel = 0; -- no border
+					BackgroundColor3 = Library.MainColor;
+					BorderColor3 = Color3.new(0, 0, 0);
 					Size = UDim2.new(0.5, 0, 1, 0);
 					ZIndex = 6;
 					Parent = TabboxButtons;
+				});
+
+				Library:AddToRegistry(Button, {
+					BackgroundColor3 = 'MainColor';
 				});
 
 				local ButtonLabel = Library:CreateLabel({
@@ -3533,26 +3530,8 @@ function Library:CreateWindow(...)
 					Container.Visible = true;
 					Block.Visible = true;
 
-					Button.BackgroundColor3 = Library.BackgroundColor; -- keep blended
-
-					-- Position the highlight above this tab
-					local highlight = Tabbox.TabHighlight;
-					if highlight then
-						highlight.Visible = true;
-						local function updateHighlightPosition()
-							if not Button or not Button.Parent then return end
-							local buttonAbsPos = Button.AbsolutePosition;
-							local parentAbsPos = BoxInner.AbsolutePosition;
-							local xOffset = buttonAbsPos.X - parentAbsPos.X;
-							local width = Button.AbsoluteSize.X;
-							highlight.Position = UDim2.new(0, xOffset, 0, 0);
-							highlight.Size = UDim2.new(0, width, 0, 2);
-						end
-						updateHighlightPosition();
-						Button:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateHighlightPosition);
-						Button:GetPropertyChangedSignal('AbsoluteSize'):Connect(updateHighlightPosition);
-						BoxInner:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateHighlightPosition);
-					end
+					Button.BackgroundColor3 = Library.BackgroundColor;
+					Library.RegistryMap[Button].Properties.BackgroundColor3 = 'BackgroundColor';
 
 					Tab:Resize();
 				end;
@@ -3561,7 +3540,8 @@ function Library:CreateWindow(...)
 					Container.Visible = false;
 					Block.Visible = false;
 
-					Button.BackgroundColor3 = Library.BackgroundColor;
+					Button.BackgroundColor3 = Library.MainColor;
+					Library.RegistryMap[Button].Properties.BackgroundColor3 = 'MainColor';
 				end;
 
 				function Tab:Resize()
