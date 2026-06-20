@@ -1,3 +1,9 @@
+--[[
+    Optimized UI with border-only drag preview.
+    Window itself has NO outer border (transparent background, no border).
+    During drag, a border frame (accent color) follows the mouse.
+]]
+
 local InputService = game:GetService('UserInputService');
 local TextService = game:GetService('TextService');
 local CoreGui = gethui and gethui() or cloneref(game:GetService('CoreGui'));
@@ -171,16 +177,15 @@ function Library:CreateLabel(Properties, IsHud)
 	return Library:Create(_Instance, Properties);
 end;
 
--- Smooth dragging with a border-only "ghost" preview (Windows-style)
+-- DRAGGING: border-only preview (like Windows "Show window contents while dragging" off)
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
 
-	local DragPreview = Library:Create('Frame', {
+	-- Create a drag preview frame (border only) for this draggable object
+	local dragPreview = Library:Create('Frame', {
 		BackgroundTransparency = 1;
 		BorderColor3 = Library.AccentColor;
 		BorderSizePixel = 2;
-		BorderMode = Enum.BorderMode.Outline;
-		AnchorPoint = Instance.AnchorPoint; -- must match or the preview renders in the wrong spot
 		Size = Instance.Size;
 		Position = Instance.Position;
 		Visible = false;
@@ -188,12 +193,8 @@ function Library:MakeDraggable(Instance, Cutoff)
 		Parent = ScreenGui;
 	});
 
-	-- keeps the border color in sync with theme/accent changes
-	Library:AddToRegistry(DragPreview, {
-		BorderColor3 = 'AccentColor';
-	});
-
-	local Dragging = false;
+	local isDragging = false;
+	local dragOffset = Vector2.new();
 
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -206,27 +207,34 @@ function Library:MakeDraggable(Instance, Cutoff)
 				return;
 			end;
 
-			Dragging = true;
+			isDragging = true;
+			dragOffset = ObjPos;
 
-			DragPreview.Size = Instance.Size;
-			DragPreview.Position = Instance.Position;
-			DragPreview.Visible = true;
+			-- Hide the actual window and show the border preview
 			Instance.Visible = false;
+			dragPreview.Size = Instance.Size;
+			dragPreview.Position = Instance.Position;
+			dragPreview.Visible = true;
 
-			while Dragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-				DragPreview.Position = UDim2.new(
-					0, Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
-					0, Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
+			while isDragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+				local newPos = UDim2.new(
+					0,
+					Mouse.X - dragOffset.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
+					0,
+					Mouse.Y - dragOffset.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
 				);
-
+				dragPreview.Position = newPos;
 				RenderStepped:Wait();
-			end;
+			end
 
-			Dragging = false;
-			Instance.Position = DragPreview.Position;
-			Instance.Visible = true;
-			DragPreview.Visible = false;
-		end;
+			-- End drag: place the window at the preview position and show it
+			if isDragging then
+				Instance.Position = dragPreview.Position;
+				Instance.Visible = true;
+				dragPreview.Visible = false;
+				isDragging = false;
+			end
+		end
 	end);
 end;
 
@@ -3058,9 +3066,10 @@ function Library:CreateWindow(...)
 	};
 
 	local Outer = Library:Create('Frame', {
+		Name = 'Outer',
 		AnchorPoint = Config.AnchorPoint,
-		BackgroundColor3 = Color3.new(0, 0, 0);
-		BorderSizePixel = 0;
+		BackgroundTransparency = 1, -- No black border
+		BorderSizePixel = 0,
 		Position = Config.Position,
 		Size = Config.Size,
 		Visible = false;
@@ -3071,18 +3080,17 @@ function Library:CreateWindow(...)
 	Library:MakeDraggable(Outer, 25);
 
 	local Inner = Library:Create('Frame', {
+		Name = 'Inner',
 		BackgroundColor3 = Library.MainColor;
-		BorderColor3 = Library.AccentColor;
-		BorderMode = Enum.BorderMode.Inset;
-		Position = UDim2.new(0, 1, 0, 1);
-		Size = UDim2.new(1, -2, 1, -2);
+		BorderSizePixel = 0, -- No border
+		Position = UDim2.new(0, 0, 0, 0); -- Fill entire Outer
+		Size = UDim2.new(1, 0, 1, 0);
 		ZIndex = 1;
 		Parent = Outer;
 	});
 
 	Library:AddToRegistry(Inner, {
 		BackgroundColor3 = 'MainColor';
-		BorderColor3 = 'AccentColor';
 	});
 
 	local WindowLabel = Library:CreateLabel({
@@ -3155,7 +3163,6 @@ function Library:CreateWindow(...)
 		ZIndex = 2;
 		Parent = MainSectionInner;
 	});
-
 
 	Library:AddToRegistry(TabContainer, {
 		BackgroundColor3 = 'MainColor';
