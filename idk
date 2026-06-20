@@ -1,8 +1,3 @@
---[[
-    Fully optimized UI-only version with drag optimization.
-    When dragging, only a border frame moves (no contents), eliminating lag.
-]]
-
 local InputService = game:GetService('UserInputService');
 local TextService = game:GetService('TextService');
 local CoreGui = gethui and gethui() or cloneref(game:GetService('CoreGui'));
