@@ -171,8 +171,24 @@ function Library:CreateLabel(Properties, IsHud)
 	return Library:Create(_Instance, Properties);
 end;
 
+-- DRAGGING: border-only preview (like Windows "Show window contents while dragging" off)
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
+
+	-- Create a drag preview frame (border only) for this draggable object
+	local dragPreview = Library:Create('Frame', {
+		BackgroundTransparency = 1;
+		BorderColor3 = Library.AccentColor;
+		BorderSizePixel = 2;
+		Size = Instance.Size;
+		Position = Instance.Position;
+		Visible = false;
+		ZIndex = 999;
+		Parent = ScreenGui;
+	});
+
+	local isDragging = false;
+	local dragOffset = Vector2.new();
 
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -185,18 +201,35 @@ function Library:MakeDraggable(Instance, Cutoff)
 				return;
 			end;
 
-			while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-				Instance.Position = UDim2.new(
-					0,
-					Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
-					0,
-					Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
-				);
+			isDragging = true;
+			dragOffset = ObjPos;
 
+			-- Hide the actual window and show the border preview
+			Instance.Visible = false;
+			dragPreview.Size = Instance.Size;
+			dragPreview.Position = Instance.Position;
+			dragPreview.Visible = true;
+
+			while isDragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+				local newPos = UDim2.new(
+					0,
+					Mouse.X - dragOffset.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
+					0,
+					Mouse.Y - dragOffset.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
+				);
+				dragPreview.Position = newPos;
 				RenderStepped:Wait();
-			end;
-		end;
-	end)
+			end
+
+			-- End drag: place the window at the preview position and show it
+			if isDragging then
+				Instance.Position = dragPreview.Position;
+				Instance.Visible = true;
+				dragPreview.Visible = false;
+				isDragging = false;
+			end
+		end
+	end);
 end;
 
 function Library:AddToolTip(InfoStr, HoverInstance)
@@ -650,7 +683,7 @@ do
 			Position = UDim2.fromOffset(5, 5);
 			TextXAlignment = Enum.TextXAlignment.Left;
 			TextSize = 14;
-			Text = ColorPicker.Title,
+			Text = ColorPicker.Title,--Info.Default;
 			TextWrapped = false;
 			ZIndex = 16;
 			Parent = PickerFrameInner;
@@ -1011,7 +1044,7 @@ do
 			Type = 'KeyPicker';
 			Callback = Info.Callback or function(Value) end;
 			ChangedCallback = Info.ChangedCallback or function(New) end;
-			NoUI = Info.NoUI;
+			NoUI = Info.NoUI;--Info.NoUI;
 			SyncToggleState = Info.SyncToggleState or false;
 			Parent = ParentObj;
 		};
@@ -1972,7 +2005,7 @@ do
 			Min = Info.Min;
 			Max = Info.Max;
 			Rounding = Info.Rounding;
-			MaxSize = 232;
+			MaxSize = 232;--SliderParent and 232/2 - 3 or 232;
 			Type = 'Slider';
 			Callback = Info.Callback or function(Value) end;
 		};
@@ -2000,6 +2033,7 @@ do
 		local SliderOuter = Library:Create('Frame', {
 			BackgroundColor3 = Color3.new(0, 0, 0);
 			BorderColor3 = Color3.new(0, 0, 0);
+			--Position = UDim2.fromScale(Groupbox.SliderParent and .5 or 0,0);
 			Size = UDim2.new(1,0,0,13);
 			ZIndex = 5;
 			Parent = Container;
@@ -2235,7 +2269,7 @@ do
 			Value = Info.Multi and {};
 			Multi = Info.Multi;
 			Type = 'Dropdown';
-			SpecialType = Info.SpecialType;
+			SpecialType = Info.SpecialType; -- can be either 'Player' or 'Team'
 			Callback = Info.Callback or function(Value) end;
 		};
 
@@ -2864,7 +2898,7 @@ do
 	local KeybindLabel = Library:CreateLabel({
 		Size = UDim2.new(1, 0, 0, 20);
 		Position = UDim2.fromOffset(5, 2),
-		TextXAlignment = Enum.TextXAlignment.Left;
+		TextXAlignment = Enum.TextXAlignment.Left,
 
 		Text = 'Keybinds';
 		ZIndex = 104;
@@ -3026,9 +3060,10 @@ function Library:CreateWindow(...)
 	};
 
 	local Outer = Library:Create('Frame', {
+		Name = 'Outer',
 		AnchorPoint = Config.AnchorPoint,
-		BackgroundColor3 = Color3.new(0, 0, 0);
-		BorderSizePixel = 0;
+		BackgroundTransparency = 1, -- No black border
+		BorderSizePixel = 0,
 		Position = Config.Position,
 		Size = Config.Size,
 		Visible = false;
@@ -3039,18 +3074,17 @@ function Library:CreateWindow(...)
 	Library:MakeDraggable(Outer, 25);
 
 	local Inner = Library:Create('Frame', {
+		Name = 'Inner',
 		BackgroundColor3 = Library.MainColor;
-		BorderColor3 = Library.AccentColor;
-		BorderMode = Enum.BorderMode.Inset;
-		Position = UDim2.new(0, 1, 0, 1);
-		Size = UDim2.new(1, -2, 1, -2);
+		BorderSizePixel = 0, -- No border
+		Position = UDim2.new(0, 0, 0, 0); -- Fill entire Outer
+		Size = UDim2.new(1, 0, 1, 0);
 		ZIndex = 1;
 		Parent = Outer;
 	});
 
 	Library:AddToRegistry(Inner, {
 		BackgroundColor3 = 'MainColor';
-		BorderColor3 = 'AccentColor';
 	});
 
 	local WindowLabel = Library:CreateLabel({
@@ -3123,7 +3157,6 @@ function Library:CreateWindow(...)
 		ZIndex = 2;
 		Parent = MainSectionInner;
 	});
-
 
 	Library:AddToRegistry(TabContainer, {
 		BackgroundColor3 = 'MainColor';
@@ -3278,6 +3311,7 @@ function Library:CreateWindow(...)
 			local BoxInner = Library:Create('Frame', {
 				BackgroundColor3 = Library.BackgroundColor;
 				BorderColor3 = Color3.new(0, 0, 0);
+				-- BorderMode = Enum.BorderMode.Inset;
 				Size = UDim2.new(1, -2, 1, -2);
 				Position = UDim2.new(0, 1, 0, 1);
 				ZIndex = 4;
@@ -3362,9 +3396,6 @@ function Library:CreateWindow(...)
 			return self:AddGroupbox({ Side = 2; Name = Name; });
 		end;
 
-		-- ============================================================
-		--  MODIFIED: Tabbox with moving inliner (per‑selected tab)
-		-- ============================================================
 		function Tab:AddTabbox(Info)
 			local Tabbox = {
 				Tabs = {};
@@ -3372,7 +3403,7 @@ function Library:CreateWindow(...)
 
 			local BoxOuter = Library:Create('Frame', {
 				BackgroundColor3 = Library.BackgroundColor;
-				BorderColor3 = Library.BackgroundColor;  -- blend the black border
+				BorderColor3 = Library.OutlineColor;
 				BorderMode = Enum.BorderMode.Inset;
 				Size = UDim2.new(1, 0, 0, 0);
 				ZIndex = 2;
@@ -3381,12 +3412,13 @@ function Library:CreateWindow(...)
 
 			Library:AddToRegistry(BoxOuter, {
 				BackgroundColor3 = 'BackgroundColor';
-				BorderColor3 = 'BackgroundColor';  -- keep it blended
+				BorderColor3 = 'OutlineColor';
 			});
 
 			local BoxInner = Library:Create('Frame', {
 				BackgroundColor3 = Library.BackgroundColor;
 				BorderColor3 = Color3.new(0, 0, 0);
+				-- BorderMode = Enum.BorderMode.Inset;
 				Size = UDim2.new(1, -2, 1, -2);
 				Position = UDim2.new(0, 1, 0, 1);
 				ZIndex = 4;
@@ -3397,7 +3429,18 @@ function Library:CreateWindow(...)
 				BackgroundColor3 = 'BackgroundColor';
 			});
 
-			-- Replace the old full‑width Highlight with a moving inliner
+			local Highlight = Library:Create('Frame', {
+				BackgroundColor3 = Library.AccentColor;
+				BorderSizePixel = 0;
+				Size = UDim2.new(1, 0, 0, 2);
+				ZIndex = 10;
+				Parent = BoxInner;
+			});
+
+			Library:AddToRegistry(Highlight, {
+				BackgroundColor3 = 'AccentColor';
+			});
+
 			local TabboxButtons = Library:Create('Frame', {
 				BackgroundTransparency = 1;
 				Position = UDim2.new(0, 0, 0, 1);
@@ -3412,32 +3455,6 @@ function Library:CreateWindow(...)
 				SortOrder = Enum.SortOrder.LayoutOrder;
 				Parent = TabboxButtons;
 			});
-
-			-- The moving inliner (will be positioned above the active tab)
-			local Inliner = Library:Create('Frame', {
-				BackgroundColor3 = Library.AccentColor;
-				BorderSizePixel = 0;
-				Size = UDim2.new(0, 0, 0, 2);
-				ZIndex = 11;   -- above buttons
-				Parent = TabboxButtons;
-			});
-
-			Library:AddToRegistry(Inliner, {
-				BackgroundColor3 = 'AccentColor';
-			});
-
-			-- Store references
-			Tabbox.Inliner = Inliner;
-			Tabbox.TabboxButtons = TabboxButtons;
-			Tabbox.ActiveButton = nil;
-
-			-- Function to move the inliner to a given button
-			function Tabbox:MoveInlinerTo(Button)
-				if not Button then return end
-				Tabbox.ActiveButton = Button
-				Inliner.Size = UDim2.new(0, Button.Size.X.Offset, 0, 2)
-				Inliner.Position = UDim2.new(0, Button.Position.X.Offset, 0, 0)
-			end
 
 			local Tabboxes = Tab.Tabboxes;
 			function Tabbox:Remove()
@@ -3510,9 +3527,6 @@ function Library:CreateWindow(...)
 					Button.BackgroundColor3 = Library.BackgroundColor;
 					Library.RegistryMap[Button].Properties.BackgroundColor3 = 'BackgroundColor';
 
-					-- Move the inliner to this button
-					Tabbox:MoveInlinerTo(Button)
-
 					Tab:Resize();
 				end;
 
@@ -3536,11 +3550,6 @@ function Library:CreateWindow(...)
 							Button.Size = UDim2.new(1 / TabCount, 0, 1, 0);
 						end;
 					end;
-
-					-- If the active button still exists, update inliner size/pos
-					if Tabbox.ActiveButton and Tabbox.ActiveButton.Parent then
-						Tabbox:MoveInlinerTo(Tabbox.ActiveButton)
-					end
 
 					if (not Container.Visible) then
 						return;
@@ -3572,7 +3581,6 @@ function Library:CreateWindow(...)
 				Tab:AddBlank(3);
 				Tab:Resize();
 
-				-- Show first tab (number is 2 cus of the UIListLayout that also sits in that instance)
 				if #TabboxButtons:GetChildren() == 2 then
 					Tab:Show();
 				end;
@@ -3644,6 +3652,7 @@ function Library:CreateWindow(...)
 			local guiservice = game:GetService("GuiService");
 			task.spawn(function()
 				local State = InputService.MouseIconEnabled;
+
 				local Cursor = Instance.new("ImageLabel", ScreenGui);
 				Cursor.Image = "http://www.roblox.com/asset/?id=4292970642";
 				Cursor.BackgroundTransparency = 1;
