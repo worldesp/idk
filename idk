@@ -172,14 +172,16 @@ function Library:CreateLabel(Properties, IsHud)
 end;
 
 -- OPTIMIZED DRAGGING with border-only preview
+-- Smooth dragging with a border-only "ghost" preview (Windows-style)
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
 
-	-- Create a drag preview frame (border only) for this draggable object
-	local dragPreview = Library:Create('Frame', {
+	local DragPreview = Library:Create('Frame', {
 		BackgroundTransparency = 1;
 		BorderColor3 = Library.AccentColor;
 		BorderSizePixel = 2;
+		BorderMode = Enum.BorderMode.Outline;
+		AnchorPoint = Instance.AnchorPoint; -- <-- this was missing
 		Size = Instance.Size;
 		Position = Instance.Position;
 		Visible = false;
@@ -187,9 +189,12 @@ function Library:MakeDraggable(Instance, Cutoff)
 		Parent = ScreenGui;
 	});
 
-	local isDragging = false;
-	local dragOffset = Vector2.new();
-	local originalSize = Instance.Size;
+	-- keeps the border in sync with theme/accent color changes
+	Library:AddToRegistry(DragPreview, {
+		BorderColor3 = 'AccentColor';
+	});
+
+	local Dragging = false;
 
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -202,34 +207,27 @@ function Library:MakeDraggable(Instance, Cutoff)
 				return;
 			end;
 
-			isDragging = true;
-			dragOffset = ObjPos;
+			Dragging = true;
 
-			-- Hide the actual window and show the border preview
+			DragPreview.Size = Instance.Size;
+			DragPreview.Position = Instance.Position;
+			DragPreview.Visible = true;
 			Instance.Visible = false;
-			dragPreview.Size = Instance.Size;
-			dragPreview.Position = Instance.Position;
-			dragPreview.Visible = true;
 
-			while isDragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-				local newPos = UDim2.new(
-					0,
-					Mouse.X - dragOffset.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
-					0,
-					Mouse.Y - dragOffset.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
+			while Dragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+				DragPreview.Position = UDim2.new(
+					0, Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
+					0, Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
 				);
-				dragPreview.Position = newPos;
-				RenderStepped:Wait();
-			end
 
-			-- End drag: place the window at the preview position and show it
-			if isDragging then
-				Instance.Position = dragPreview.Position;
-				Instance.Visible = true;
-				dragPreview.Visible = false;
-				isDragging = false;
-			end
-		end
+				RenderStepped:Wait();
+			end;
+
+			Dragging = false;
+			Instance.Position = DragPreview.Position;
+			Instance.Visible = true;
+			DragPreview.Visible = false;
+		end;
 	end);
 end;
 
