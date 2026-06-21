@@ -1,3 +1,9 @@
+--[[
+    LinoriaLib – with ESP Preview
+    All original functionality preserved.
+    Added: Groupbox:AddPreview() method.
+]]
+
 local InputService = game:GetService('UserInputService');
 local TextService = game:GetService('TextService');
 local CoreGui = gethui and gethui() or cloneref(game:GetService('CoreGui'));
@@ -30,12 +36,11 @@ local Library = {
 
 	HudRegistry = {};
 
-	-- Updated default colors
 	FontColor = Color3.fromRGB(255, 255, 255);
-	MainColor = Color3.fromRGB(27, 27, 27);     -- #1B1B1B
-	BackgroundColor = Color3.fromRGB(22, 22, 22); -- #161616
-	AccentColor = Color3.fromRGB(192, 179, 255);  -- #C0B3FF
-	OutlineColor = Color3.fromRGB(35, 35, 35);    -- #232323
+	MainColor = Color3.fromRGB(27, 27, 27);
+	BackgroundColor = Color3.fromRGB(22, 22, 22);
+	AccentColor = Color3.fromRGB(192, 179, 255);
+	OutlineColor = Color3.fromRGB(35, 35, 35);
 	RiskColor = Color3.fromRGB(255, 50, 50),
 
 	Black = Color3.new(0, 0, 0);
@@ -45,13 +50,7 @@ local Library = {
 	DependencyBoxes = {};
 
 	KeypickerListVisible = true;
-	KeypickerListMode = "All"; --[[
-		{
-			"Active",
-			"Toggled",
-			"All"
-		};
-	]]
+	KeypickerListMode = "All";
 
 	Signals = {};
 	ScreenGui = ScreenGui;
@@ -173,15 +172,13 @@ function Library:CreateLabel(Properties, IsHud)
 end;
 
 -- DRAGGING: border-only preview (like Windows "Show window contents while dragging" off)
--- Now uses a thicker border (4 pixels) and explicitly sets the accent color.
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
 
-	-- Create a drag preview frame (border only) for this draggable object
 	local dragPreview = Library:Create('Frame', {
 		BackgroundTransparency = 1;
 		BorderColor3 = Library.AccentColor;
-		BorderSizePixel = 4;  -- thicker for visibility
+		BorderSizePixel = 4;
 		Size = Instance.Size;
 		Position = Instance.Position;
 		Visible = false;
@@ -206,7 +203,6 @@ function Library:MakeDraggable(Instance, Cutoff)
 			isDragging = true;
 			dragOffset = ObjPos;
 
-			-- Hide the actual window and show the border preview
 			Instance.Visible = false;
 			dragPreview.Size = Instance.Size;
 			dragPreview.Position = Instance.Position;
@@ -223,7 +219,6 @@ function Library:MakeDraggable(Instance, Cutoff)
 				RenderStepped:Wait();
 			end
 
-			-- End drag: place the window at the preview position and show it
 			if isDragging then
 				Instance.Position = dragPreview.Position;
 				Instance.Visible = true;
@@ -2773,6 +2768,288 @@ do
 
 		return Depbox;
 	end;
+
+	-- ===============================
+	-- NEW: AddPreview (ESP Preview)
+	-- ===============================
+	function Funcs:AddPreview(Data)
+		Data = Data or {}
+
+		local Preview = {
+			Height = Data.Height or 300,
+			Items = {},
+			Enabled = false,
+			Update = function() end,
+		}
+
+		local Groupbox = self;
+		local Container = Groupbox.Container;
+
+		-- Main container
+		local Outer = Library:Create('Frame', {
+			BackgroundColor3 = Library.BackgroundColor;
+			BorderColor3 = Library.OutlineColor;
+			BorderMode = Enum.BorderMode.Inset;
+			Size = UDim2.new(1, -4, 0, Preview.Height + 4);
+			ZIndex = 5;
+			Parent = Container;
+		});
+
+		Library:AddToRegistry(Outer, {
+			BackgroundColor3 = 'BackgroundColor';
+			BorderColor3 = 'OutlineColor';
+		});
+
+		local Inner = Library:Create('Frame', {
+			BackgroundColor3 = Library.MainColor;
+			BorderColor3 = Library.OutlineColor;
+			BorderMode = Enum.BorderMode.Inset;
+			Position = UDim2.new(0, 1, 0, 1);
+			Size = UDim2.new(1, -2, 1, -2);
+			ZIndex = 1;
+			Parent = Outer;
+		});
+
+		Library:AddToRegistry(Inner, {
+			BackgroundColor3 = 'MainColor';
+			BorderColor3 = 'OutlineColor';
+		});
+
+		-- ViewportFrame for the 3D preview
+		local Viewport = Library:Create('ViewportFrame', {
+			BackgroundColor3 = Library.BackgroundColor;
+			Size = UDim2.new(1, 0, 1, 0);
+			ZIndex = 1;
+			Parent = Inner;
+		});
+
+		Library:AddToRegistry(Viewport, {
+			BackgroundColor3 = 'BackgroundColor';
+		});
+
+		-- ESP overlay (will be positioned on top)
+		local Overlay = Library:Create('Frame', {
+			BackgroundTransparency = 1;
+			Size = UDim2.new(1, 0, 1, 0);
+			ZIndex = 10;
+			Parent = Inner;
+		});
+
+		-- Preview elements (box, health, name, etc.)
+		local ESP = {};
+
+		-- Box
+		ESP.Box = Library:Create('Frame', {
+			BackgroundTransparency = 0.5;
+			BackgroundColor3 = Library.AccentColor;
+			BorderColor3 = Library.AccentColor;
+			BorderSizePixel = 2;
+			Visible = false;
+			ZIndex = 2;
+			Parent = Overlay;
+		});
+
+		-- Health bar background
+		ESP.HealthBg = Library:Create('Frame', {
+			BackgroundColor3 = Library.OutlineColor;
+			BorderSizePixel = 0;
+			Visible = false;
+			ZIndex = 3;
+			Parent = Overlay;
+		});
+
+		-- Health fill
+		ESP.HealthFill = Library:Create('Frame', {
+			BackgroundColor3 = Color3.fromRGB(0, 255, 0);
+			BorderSizePixel = 0;
+			Visible = false;
+			ZIndex = 4;
+			Parent = ESP.HealthBg;
+		});
+
+		-- Name
+		ESP.Name = Library:CreateLabel({
+			Text = 'Player';
+			TextSize = 14;
+			TextColor3 = Library.FontColor;
+			Visible = false;
+			ZIndex = 5;
+			Parent = Overlay;
+		});
+
+		-- Distance
+		ESP.Distance = Library:CreateLabel({
+			Text = '0 studs';
+			TextSize = 12;
+			TextColor3 = Library.FontColor;
+			Visible = false;
+			ZIndex = 5;
+			Parent = Overlay;
+		});
+
+		-- Weapons (placeholder)
+		ESP.Weapon = Library:CreateLabel({
+			Text = 'Weapon';
+			TextSize = 12;
+			TextColor3 = Library.FontColor;
+			Visible = false;
+			ZIndex = 5;
+			Parent = Overlay;
+		});
+
+		-- Fill gradient for box (optional)
+		local BoxFill = Library:Create('UIGradient', {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Library.AccentColor),
+				ColorSequenceKeypoint.new(1, Library.AccentColor)
+			});
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.7),
+				NumberSequenceKeypoint.new(1, 0.9)
+			});
+			Rotation = 90;
+			Parent = ESP.Box;
+		});
+
+		Library:AddToRegistry(BoxFill, {
+			Color = function()
+				return ColorSequence.new({
+					ColorSequenceKeypoint.new(0, Library.AccentColor),
+					ColorSequenceKeypoint.new(1, Library.AccentColor)
+				});
+			end
+		});
+
+		-- Create a dummy character in the Viewport
+		local dummy = Instance.new('Model');
+		dummy.Name = 'Dummy';
+
+		local torso = Instance.new('Part');
+		torso.Name = 'Torso';
+		torso.Size = Vector3.new(2, 2, 1);
+		torso.CFrame = CFrame.new(0, 0, 0);
+		torso.Anchored = true;
+		torso.Parent = dummy;
+
+		local head = Instance.new('Part');
+		head.Name = 'Head';
+		head.Size = Vector3.new(1, 1, 1);
+		head.CFrame = CFrame.new(0, 1.5, 0);
+		head.Anchored = true;
+		head.Parent = dummy;
+
+		local root = Instance.new('Part');
+		root.Name = 'HumanoidRootPart';
+		root.Size = Vector3.new(2, 1, 1);
+		root.CFrame = CFrame.new(0, -1.5, 0);
+		root.Anchored = true;
+		root.Parent = dummy;
+
+		dummy.PrimaryPart = root;
+		dummy:SetPrimaryPartCFrame(CFrame.new(0, 0, -3));
+
+		dummy.Parent = Viewport.Instance;
+
+		-- Camera
+		local cam = Instance.new('Camera');
+		cam.Parent = Viewport.Instance;
+		Viewport.Instance.CurrentCamera = cam;
+		cam.CFrame = CFrame.new(0, 1, 8) * CFrame.Angles(0, 0, 0);
+
+		-- Update function
+		local function UpdatePreview()
+			if not Preview.Enabled then
+				ESP.Box.Visible = false;
+				ESP.HealthBg.Visible = false;
+				ESP.Name.Visible = false;
+				ESP.Distance.Visible = false;
+				ESP.Weapon.Visible = false;
+				return;
+			end
+
+			-- Simulate a target position (always in view)
+			local targetPos = Vector3.new(0, 0, 0);
+			local worldPos = cam:WorldToScreenPoint(targetPos);
+			local screenX = worldPos.X * Viewport.Instance.AbsoluteSize.X;
+			local screenY = worldPos.Y * Viewport.Instance.AbsoluteSize.Y;
+
+			-- Box dimensions (simulate a player box)
+			local boxWidth = 60;
+			local boxHeight = 120;
+
+			local x = screenX - boxWidth / 2;
+			local y = screenY - boxHeight / 2;
+
+			ESP.Box.Position = UDim2.fromOffset(x, y);
+			ESP.Box.Size = UDim2.fromOffset(boxWidth, boxHeight);
+			ESP.Box.Visible = true;
+
+			-- Health bar (on the left of the box)
+			local healthWidth = 6;
+			local healthHeight = boxHeight;
+			ESP.HealthBg.Position = UDim2.fromOffset(x - healthWidth - 2, y);
+			ESP.HealthBg.Size = UDim2.fromOffset(healthWidth, healthHeight);
+			ESP.HealthBg.Visible = true;
+
+			local healthPercent = 0.75; -- simulate 75% health
+			ESP.HealthFill.Size = UDim2.new(1, 0, healthPercent, 0);
+			ESP.HealthFill.Position = UDim2.new(0, 0, 1 - healthPercent, 0);
+			ESP.HealthFill.Visible = true;
+
+			-- Name
+			ESP.Name.Position = UDim2.fromOffset(x, y - 18);
+			ESP.Name.Text = 'Dummy';
+			ESP.Name.Visible = true;
+
+			-- Distance
+			ESP.Distance.Position = UDim2.fromOffset(x, y + boxHeight + 2);
+			ESP.Distance.Text = '10 studs';
+			ESP.Distance.Visible = true;
+
+			-- Weapon
+			ESP.Weapon.Position = UDim2.fromOffset(x + boxWidth + 4, y + boxHeight / 2 - 10);
+			ESP.Weapon.Text = 'Sword';
+			ESP.Weapon.Visible = true;
+		end
+
+		Preview.Update = UpdatePreview;
+		Preview.Items = {
+			Outer = Outer,
+			Inner = Inner,
+			Viewport = Viewport,
+			Overlay = Overlay,
+			ESP = ESP,
+			Dummy = dummy,
+			Camera = cam,
+		};
+
+		-- Connect to render step to update the preview
+		local connection = RunService.RenderStepped:Connect(function()
+			if Preview.Enabled then
+				UpdatePreview();
+			end
+		end);
+
+		table.insert(Library.Signals, connection);
+
+		-- Enable/disable preview
+		function Preview:SetEnabled(Bool)
+			Preview.Enabled = Bool;
+			if not Bool then
+				ESP.Box.Visible = false;
+				ESP.HealthBg.Visible = false;
+				ESP.Name.Visible = false;
+				ESP.Distance.Visible = false;
+				ESP.Weapon.Visible = false;
+			end
+		end
+
+		-- Return the preview object with methods
+		Groupbox:AddBlank(4);
+		Groupbox:Resize();
+
+		return Preview;
+	end
 
 	BaseGroupbox.__index = Funcs;
 	BaseGroupbox.__namecall = function(Table, Key, ...)
