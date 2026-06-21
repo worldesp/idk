@@ -3467,18 +3467,19 @@ function Library:CreateWindow(...)
 					Parent = Button;
 				});
 
+				-- Highlight line: positioned at the top of the tab, only visible when selected
 				local Block = Library:Create('Frame', {
-					BackgroundColor3 = Library.BackgroundColor;
-					BorderSizePixel = 0;
-					Position = UDim2.new(0, 0, 1, 0);
+					BackgroundColor3 = Library.AccentColor; -- use accent color
+					        BorderSizePixel = 0;
+					Position = UDim2.new(0, 0, 0, 0); -- top of the button
 					Size = UDim2.new(1, 0, 0, 1);
-					Visible = false;
+					BackgroundTransparency = 1; -- hidden by default
 					ZIndex = 9;
 					Parent = Button;
 				});
 
 				Library:AddToRegistry(Block, {
-					BackgroundColor3 = 'BackgroundColor';
+					BackgroundColor3 = 'AccentColor';
 				});
 
 				local Container = Library:Create('Frame', {
@@ -3502,7 +3503,7 @@ function Library:CreateWindow(...)
 					end;
 
 					Container.Visible = true;
-					Block.Visible = true;
+					Block.BackgroundTransparency = 0; -- show the accent line
 
 					Button.BackgroundColor3 = Library.BackgroundColor;
 					Library.RegistryMap[Button].Properties.BackgroundColor3 = 'BackgroundColor';
@@ -3512,7 +3513,7 @@ function Library:CreateWindow(...)
 
 				function Tab:Hide()
 					Container.Visible = false;
-					Block.Visible = false;
+					Block.BackgroundTransparency = 1; -- hide the accent line
 
 					Button.BackgroundColor3 = Library.MainColor;
 					Library.RegistryMap[Button].Properties.BackgroundColor3 = 'MainColor';
