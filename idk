@@ -1973,7 +1973,7 @@ do
 			Library:AddToRegistry(ToggleLabel, { TextColor3 = 'RiskColor' })
 		end
 
-			Toggle:Display();
+				Toggle:Display();
 		Groupbox:AddBlank(Info.BlankSize or 5 + 2);
 		Groupbox:Resize();
 
@@ -3502,7 +3502,7 @@ function Library:CreateWindow(...)
 				-- Highlight line: positioned at the top of the tab, only visible when selected
 				local Block = Library:Create('Frame', {
 					BackgroundColor3 = Library.AccentColor; -- use accent color
-					        BorderSizePixel = 0;
+							BorderSizePixel = 0;
 					Position = UDim2.new(0, 0, 0, 0); -- top of the button
 					Size = UDim2.new(1, 0, 0, 1);
 					BackgroundTransparency = 1; -- hidden by default
