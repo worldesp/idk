@@ -172,66 +172,29 @@ function Library:CreateLabel(Properties, IsHud)
 	return Library:Create(_Instance, Properties);
 end;
 
--- DRAGGING: border-only preview (like Windows "Show window contents while dragging" off)
--- Now uses a thicker border (4 pixels) and explicitly sets the accent color.
+-- DRAGGING: original LinoriaLib behavior (direct drag, no preview frame)
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
-
-	-- Create a drag preview frame (border only) for this draggable object
-	local dragPreview = Library:Create('Frame', {
-		BackgroundTransparency = 1;
-		BorderColor3 = Library.AccentColor;
-		BorderSizePixel = 4;  -- thicker for visibility
-		Size = Instance.Size;
-		Position = Instance.Position;
-		Visible = false;
-		ZIndex = 999;
-		Parent = ScreenGui;
-	});
-
-	local isDragging = false;
-	local dragOffset = Vector2.new();
-
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
 			local ObjPos = Vector2.new(
 				Mouse.X - Instance.AbsolutePosition.X,
 				Mouse.Y - Instance.AbsolutePosition.Y
 			);
-
 			if ObjPos.Y > (Cutoff or 40) then
 				return;
 			end;
-
-			isDragging = true;
-			dragOffset = ObjPos;
-
-			-- Hide the actual window and show the border preview
-			Instance.Visible = false;
-			dragPreview.Size = Instance.Size;
-			dragPreview.Position = Instance.Position;
-			dragPreview.Visible = true;
-
-			while isDragging and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-				local newPos = UDim2.new(
+			while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+				Instance.Position = UDim2.new(
 					0,
-					Mouse.X - dragOffset.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
+					Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
 					0,
-					Mouse.Y - dragOffset.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
+					Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
 				);
-				dragPreview.Position = newPos;
 				RenderStepped:Wait();
-			end
-
-			-- End drag: place the window at the preview position and show it
-			if isDragging then
-				Instance.Position = dragPreview.Position;
-				Instance.Visible = true;
-				dragPreview.Visible = false;
-				isDragging = false;
-			end
-		end
-	end);
+			end;
+		end;
+	end)
 end;
 
 function Library:AddToolTip(InfoStr, HoverInstance)
@@ -3212,8 +3175,9 @@ function Library:CreateWindow(...)
 			Parent = TabButton;
 		});
 
+		-- Highlight indicator: only visible on the selected tab, uses AccentColor
 		local Blocker = Library:Create('Frame', {
-			BackgroundColor3 = Library.MainColor;
+			BackgroundColor3 = Library.AccentColor;  -- now uses AccentColor for the highlight
 			BorderSizePixel = 0;
 			Position = UDim2.new(0, 0, 1, 0);
 			Size = UDim2.new(1, 0, 0, 1);
@@ -3223,7 +3187,7 @@ function Library:CreateWindow(...)
 		});
 
 		Library:AddToRegistry(Blocker, {
-			BackgroundColor3 = 'MainColor';
+			BackgroundColor3 = 'AccentColor';
 		});
 
 		local TabFrame = Library:Create('Frame', {
@@ -3289,14 +3253,14 @@ function Library:CreateWindow(...)
 				Tab:HideTab();
 			end;
 
-			Blocker.BackgroundTransparency = 0;
+			Blocker.BackgroundTransparency = 0;  -- show the highlight only on the selected tab
 			TabButton.BackgroundColor3 = Library.MainColor;
 			Library.RegistryMap[TabButton].Properties.BackgroundColor3 = 'MainColor';
 			TabFrame.Visible = true;
 		end;
 
 		function Tab:HideTab()
-			Blocker.BackgroundTransparency = 1;
+			Blocker.BackgroundTransparency = 1;  -- hide the highlight on unselected tabs
 			TabButton.BackgroundColor3 = Library.BackgroundColor;
 			Library.RegistryMap[TabButton].Properties.BackgroundColor3 = 'BackgroundColor';
 			TabFrame.Visible = false;
