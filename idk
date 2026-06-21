@@ -30,6 +30,7 @@ local Library = {
 
 	HudRegistry = {};
 
+	-- Updated default colors
 	FontColor = Color3.fromRGB(255, 255, 255);
 	MainColor = Color3.fromRGB(27, 27, 27);     -- #1B1B1B
 	BackgroundColor = Color3.fromRGB(22, 22, 22); -- #161616
@@ -172,6 +173,7 @@ function Library:CreateLabel(Properties, IsHud)
 end;
 
 -- DRAGGING: border-only preview (like Windows "Show window contents while dragging" off)
+-- Now uses a thicker border (4 pixels) and explicitly sets the accent color.
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
 
@@ -179,7 +181,7 @@ function Library:MakeDraggable(Instance, Cutoff)
 	local dragPreview = Library:Create('Frame', {
 		BackgroundTransparency = 1;
 		BorderColor3 = Library.AccentColor;
-		BorderSizePixel = 2;
+		BorderSizePixel = 4;  -- thicker for visibility
 		Size = Instance.Size;
 		Position = Instance.Position;
 		Visible = false;
