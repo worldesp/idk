@@ -74,7 +74,7 @@ table.insert(Library.Signals, RenderStepped:Connect(function(Delta)
 
 		Library.CurrentRainbowHue = Hue;
 		Library.CurrentRainbowColor = Color3.fromHSV(Hue, 0.8, 1);
-	end
+	end;
 end))
 
 local function GetPlayersString()
@@ -172,20 +172,48 @@ function Library:CreateLabel(Properties, IsHud)
 	return Library:Create(_Instance, Properties);
 end;
 
--- DRAGGING: original LinoriaLib behavior (direct drag, no preview frame)
+-- DRAGGING: Preview rectangle (hollow outline) that follows mouse during drag
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
+	
+	-- Create the drag preview rectangle (hollow outline)
+	local DragPreview = Library:Create('Frame', {
+		BackgroundTransparency = 1;  -- Fully transparent background
+		BackgroundColor3 = Library.AccentColor;
+		BorderColor3 = Library.AccentColor;
+		BorderSizePixel = 2;  -- Thin outline
+		Size = Instance.Size;
+		Position = Instance.Position;
+		AnchorPoint = Instance.AnchorPoint;
+		Visible = false;
+		ZIndex = 1000;
+		Parent = ScreenGui;
+	});
+
+	Library:AddToRegistry(DragPreview, {
+		BorderColor3 = 'AccentColor';
+	});
+
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
 			local ObjPos = Vector2.new(
 				Mouse.X - Instance.AbsolutePosition.X,
 				Mouse.Y - Instance.AbsolutePosition.Y
 			);
+			
 			if ObjPos.Y > (Cutoff or 40) then
 				return;
 			end;
+
+			-- Position the preview at the current instance position
+			DragPreview.Size = Instance.Size;
+			DragPreview.Position = Instance.Position;
+			DragPreview.AnchorPoint = Instance.AnchorPoint;
+			DragPreview.Visible = true;
+
 			while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-				Instance.Position = UDim2.new(
+				-- Move only the preview rectangle
+				DragPreview.Position = UDim2.new(
 					0,
 					Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
 					0,
@@ -193,8 +221,12 @@ function Library:MakeDraggable(Instance, Cutoff)
 				);
 				RenderStepped:Wait();
 			end;
+
+			-- Only update the actual instance position when releasing
+			Instance.Position = DragPreview.Position;
+			DragPreview.Visible = false;
 		end;
-	end)
+	end);
 end;
 
 function Library:AddToolTip(InfoStr, HoverInstance)
@@ -211,7 +243,7 @@ function Library:AddToolTip(InfoStr, HoverInstance)
 	})
 
 	local Label = Library:CreateLabel({
-		Position = UDim2.fromOffset(3, 1),
+		Position = UDim2.fromOffset(3, 1);
 		Size = UDim2.fromOffset(X, Y);
 		TextSize = 14;
 		Text = InfoStr,
@@ -1941,7 +1973,7 @@ do
 			Library:AddToRegistry(ToggleLabel, { TextColor3 = 'RiskColor' })
 		end
 
-		Toggle:Display();
+			Toggle:Display();
 		Groupbox:AddBlank(Info.BlankSize or 5 + 2);
 		Groupbox:Resize();
 
@@ -2863,7 +2895,7 @@ do
 	local KeybindLabel = Library:CreateLabel({
 		Size = UDim2.new(1, 0, 0, 20);
 		Position = UDim2.fromOffset(5, 2),
-		TextXAlignment = Enum.TextXAlignment.Left,
+		TextXAlignment = Enum.TextXAlignment.Left;
 
 		Text = 'Keybinds';
 		ZIndex = 104;
