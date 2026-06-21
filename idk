@@ -3110,7 +3110,7 @@ function Library:CreateWindow(...)
 	local RivalsText = "Rivals";
 	local RivalsWidth, _ = Library:GetTextBounds(RivalsText, Library.Font, 14);
 	local RivalsLabel = Library:CreateLabel({
-Position = UDim2.new(1, -RivalsWidth + 10, 0, 0)
+        Position = UDim2.new(1, -RivalsWidth + 10, 0, 0)
 		Size = UDim2.new(0, RivalsWidth, 0, 25);
 		Text = RivalsText;
 		TextXAlignment = Enum.TextXAlignment.Right;
