@@ -31,10 +31,10 @@ local Library = {
 	HudRegistry = {};
 
 	FontColor = Color3.fromRGB(255, 255, 255);
-	MainColor = Color3.fromRGB(28, 28, 28);
-	BackgroundColor = Color3.fromRGB(20, 20, 20);
-	AccentColor = Color3.fromRGB(0, 85, 255);
-	OutlineColor = Color3.fromRGB(50, 50, 50);
+	MainColor = Color3.fromRGB(27, 27, 27);     -- #1B1B1B
+	BackgroundColor = Color3.fromRGB(22, 22, 22); -- #161616
+	AccentColor = Color3.fromRGB(192, 179, 255);  -- #C0B3FF
+	OutlineColor = Color3.fromRGB(35, 35, 35);    -- #232323
 	RiskColor = Color3.fromRGB(255, 50, 50),
 
 	Black = Color3.new(0, 0, 0);
@@ -3106,11 +3106,11 @@ function Library:CreateWindow(...)
 		Parent = Inner;
 	});
 
-	-- "Rivals" label placed on the right side inside the window
+	-- "Rivals" label – right side inside window
 	local RivalsText = "Rivals";
 	local RivalsWidth, _ = Library:GetTextBounds(RivalsText, Library.Font, 14);
 	local RivalsLabel = Library:CreateLabel({
-		Position = UDim2.new(1, -8 - RivalsWidth - 4, 0, 0); -- anchored to right edge, left of version
+		Position = UDim2.new(1, -8 - RivalsWidth - 4, 0, 0);
 		Size = UDim2.new(0, RivalsWidth, 0, 25);
 		Text = RivalsText;
 		TextXAlignment = Enum.TextXAlignment.Right;
