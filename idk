@@ -34,7 +34,7 @@ local Library = {
 	FontColor = Color3.fromRGB(255, 255, 255);
 	MainColor = Color3.fromRGB(27, 27, 27);     -- #1B1B1B
 	BackgroundColor = Color3.fromRGB(22, 22, 22); -- #161616
-	AccentColor = Color3.fromRGB(192, 179, 255);  -- #C0B3FF
+	AccentColor = Color3.fromRGB(192, 179, 255);  -- #C0B3FF (purple)
 	OutlineColor = Color3.fromRGB(35, 35, 35);    -- #232323
 	RiskColor = Color3.fromRGB(255, 50, 50),
 
@@ -180,7 +180,7 @@ function Library:MakeDraggable(Instance, Cutoff)
 	local DragPreview = Library:Create('Frame', {
 		BackgroundTransparency = 1;  -- Fully transparent background
 		BackgroundColor3 = Library.AccentColor;
-		BorderColor3 = Library.AccentColor;
+		BorderColor3 = Color3.fromRGB(117, 163, 125); -- GREEN outline as requested
 		BorderSizePixel = 2;  -- Thin outline
 		Size = Instance.Size;
 		Position = Instance.Position;
@@ -190,9 +190,10 @@ function Library:MakeDraggable(Instance, Cutoff)
 		Parent = ScreenGui;
 	});
 
-	Library:AddToRegistry(DragPreview, {
-		BorderColor3 = 'AccentColor';
-	});
+	-- Optionally we could add to registry if we want to let users change it, but we'll keep it fixed green.
+	-- Library:AddToRegistry(DragPreview, {
+	-- 	BorderColor3 = 'AccentColor';
+	-- });
 
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
