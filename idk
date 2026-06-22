@@ -1,3 +1,4 @@
+-- ========== START OF LIBRARY (with green drag outline) ==========
 local InputService = game:GetService('UserInputService');
 local TextService = game:GetService('TextService');
 local CoreGui = gethui and gethui() or cloneref(game:GetService('CoreGui'));
@@ -30,12 +31,11 @@ local Library = {
 
 	HudRegistry = {};
 
-	-- Updated default colors
 	FontColor = Color3.fromRGB(255, 255, 255);
-	MainColor = Color3.fromRGB(27, 27, 27);     -- #1B1B1B
-	BackgroundColor = Color3.fromRGB(22, 22, 22); -- #161616
-	AccentColor = Color3.fromRGB(192, 179, 255);  -- #C0B3FF (purple)
-	OutlineColor = Color3.fromRGB(35, 35, 35);    -- #232323
+	MainColor = Color3.fromRGB(27, 27, 27);
+	BackgroundColor = Color3.fromRGB(22, 22, 22);
+	AccentColor = Color3.fromRGB(192, 179, 255);
+	OutlineColor = Color3.fromRGB(35, 35, 35);
 	RiskColor = Color3.fromRGB(255, 50, 50),
 
 	Black = Color3.new(0, 0, 0);
@@ -45,13 +45,7 @@ local Library = {
 	DependencyBoxes = {};
 
 	KeypickerListVisible = true;
-	KeypickerListMode = "All"; --[[
-		{
-			"Active",
-			"Toggled",
-			"All"
-		};
-	]]
+	KeypickerListMode = "All";
 
 	Signals = {};
 	ScreenGui = ScreenGui;
@@ -172,16 +166,16 @@ function Library:CreateLabel(Properties, IsHud)
 	return Library:Create(_Instance, Properties);
 end;
 
--- DRAGGING: Preview rectangle (hollow outline) that follows mouse during drag
+-- ========== DRAGGING WITH GREEN OUTLINE (the feature you want) ==========
 function Library:MakeDraggable(Instance, Cutoff)
 	Instance.Active = true;
 	
 	-- Create the drag preview rectangle (hollow outline)
 	local DragPreview = Library:Create('Frame', {
-		BackgroundTransparency = 1;  -- Fully transparent background
+		BackgroundTransparency = 1;  -- fully transparent
 		BackgroundColor3 = Library.AccentColor;
-		BorderColor3 = Color3.fromRGB(117, 163, 125); -- GREEN outline as requested
-		BorderSizePixel = 2;  -- Thin outline
+		BorderColor3 = Color3.fromRGB(117, 163, 125); -- GREEN outline
+		BorderSizePixel = 2;  -- thin outline
 		Size = Instance.Size;
 		Position = Instance.Position;
 		AnchorPoint = Instance.AnchorPoint;
@@ -189,11 +183,6 @@ function Library:MakeDraggable(Instance, Cutoff)
 		ZIndex = 1000;
 		Parent = ScreenGui;
 	});
-
-	-- Optionally we could add to registry if we want to let users change it, but we'll keep it fixed green.
-	-- Library:AddToRegistry(DragPreview, {
-	-- 	BorderColor3 = 'AccentColor';
-	-- });
 
 	Instance.InputBegan:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -3755,7 +3744,7 @@ function Library:CreateWindow(...)
 	Window.Holder = Outer;
 
 	return Window;
-end;
+end
 
 local function OnPlayerChange()
 	local PlayerList = GetPlayersString();
@@ -3771,4 +3760,4 @@ Players.PlayerAdded:Connect(OnPlayerChange);
 Players.PlayerRemoving:Connect(OnPlayerChange);
 
 getgenv().Library = Library
-return Library
+-- ========== END OF LIBRARY ==========
